@@ -219,8 +219,6 @@ function init (source, folder) {
             }
             else {
 				ncp.limit = 16;
-
-				console.log("Copy folder " + source);
                     
                 ncp(source, folder, function (err) {
 					if (err) {
