@@ -214,23 +214,23 @@ async function doit (source, destination) {
 function init (source, folder) {
     if (folder) {
         fs.mkdir(folder, (err) => {
-            if (err) {
-                if (err.code == 'EEXIST') {
-                    ncp.limit = 16;
-                    
-                    ncp(source, folder, function (err) {
-                        if (err) {
-                            return console.error(err);
-                        }
+			if (!err || err.code === 'EEXIST') {
+				ncp.limit = 16;
 
-                        console.log('done it!');
-                    });
-                }
-                else {
-                    console.log("can't do it, can't create folder " + folder + ". " + err);
-                }
-            }
-        })
+				console.log("Copy folder " + source);
+                    
+                ncp(source, folder, function (err) {
+					if (err) {
+						return console.error(err);
+                    }
+
+					console.log('done it!');
+				});
+             }
+             else {
+				console.log("can't do it, can't create folder " + folder + ". " + err);
+             }
+        });
     }
     else {
         printHelp();
