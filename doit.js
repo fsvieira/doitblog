@@ -214,7 +214,10 @@ async function doit (source, destination) {
 function init (source, folder) {
     if (folder) {
         fs.mkdir(folder, (err) => {
-			if (!err || err.code === 'EEXIST') {
+            if (err) {
+				console.log("can't do it, can't create folder " + folder + ". " + err);
+            }
+            else {
 				ncp.limit = 16;
 
 				console.log("Copy folder " + source);
@@ -226,9 +229,6 @@ function init (source, folder) {
 
 					console.log('done it!');
 				});
-             }
-             else {
-				console.log("can't do it, can't create folder " + folder + ". " + err);
              }
         });
     }
