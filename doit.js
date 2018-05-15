@@ -34,7 +34,7 @@ async function getSettings () {
 }
 
 function genFile(source, dest) {
-    execFile(pandoc, ["-o", dest, source], function (err, stdout, stderr) {
+    execFile(pandoc, ["--self-contained", "-o", dest, source], function (err, stdout, stderr) {
         if (err) {
             console.log(err);
         }
@@ -63,11 +63,18 @@ function readDescription (filePath, filename) {
                 }
             }
             else {
-                const {author} = await getSettings(); 
+                const {author} = await getSettings();
+                const index = filename.indexOf(".");
+                let title = filename;
+                
+                if (index > 0) {
+                    title = title.substring(0, index);
+                }
+
                 const data = {
                     author,
                     date: new Date().toISOString(),
-                    title: filename.substring(0, filename.indexOf("."))
+                    title
                 };
 
                 fs.write(fd, JSON.stringify(data), (err) => {
@@ -109,22 +116,24 @@ async function doUpdate (
     return sourceFileDate > destinationFileDate || descriptionFileDate > destinationFileDate;
 }
 
-/*
-async function getDBJSON (dest) {
-    return new Promise(resolve => 
-        fs.readFile(path.join(dest, "db.json"), (err, data) => {
-            if (err) {
-                resolve({
-                    pages: [],
-                    posts: []
-                });
+async function lstat (filename, filepath) {
+    return new Promise((resolve, reject) => {
+        fs.lstat(filepath,
+            (err, stats) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve({
+                        filename,
+                        filepath,
+                        isDirectory: stats.isDirectory()
+                    });
+                }
             }
-            else {
-                resolve(JSON.parse(data));
-            }
-        })
-    );
-}*/
+        );
+    });
+}
 
 async function readdir (folder) {
     return new Promise((resolve, reject) => 
@@ -133,14 +142,24 @@ async function readdir (folder) {
                 reject(err);
             }
             else {
-                resolve(files);
+
+                const r = [];
+                for (let i=0; i<files.length; i++) {
+                    const filename = files[i];
+                    const filepath = path.join(folder, filename);
+
+                    const f = await lstat(filename, filepath);
+                    r.push(f);
+                }
+                
+                resolve(r);
             }
         })
     );
 }
 
 async function cleanUp (dbJSON, destination) {
-    const files = (await readdir(destination)).map(f => path.join(destination, f));
+    const files = (await readdir(destination)).map(f => path.join(destination, f.filename));
 
     const dbFiles = dbJSON.pages.concat(dbJSON.posts).map(v => v.url);
 
@@ -177,11 +196,24 @@ async function doit (source, destination) {
 
         for (let i=0; i<files.length; i++) {
             const file = files[i];
-    
-            if (!file.endsWith(".json")) {
-                const sourceFile = path.join(folder, file);
+
+            if (!file.filename.endsWith(".json")) {
+                let sourceFile = path.join(folder, file.filename);
                 const descriptionFile = sourceFile + ".json";
-                const destinationFile = path.join(dest, file + ".html");
+
+                if (file.isDirectory) {
+                    const dfiles = await readdir(sourceFile);
+                    const index = dfiles.filter(f => !f.isDirectory && f.filename.startsWith("index."));
+
+                    if (index.length === 0) {
+                        throw "Can't find index on folder : " + sourceFile;
+                    }
+
+                    sourceFile = path.join(sourceFile, index[0].filename);
+                }
+    
+
+                const destinationFile = path.join(dest, file.filename + ".html");
     
                 if (await doUpdate(
                     sourceFile,
@@ -192,12 +224,11 @@ async function doit (source, destination) {
                 }
 
                 // always generate db json file.
-                const description = await readDescription(descriptionFile, file);
+                const description = await readDescription(descriptionFile, file.filename);
                 list.push({
                     ...description,
                     url: destinationFile
                 });
-
             }
         }
 
@@ -236,9 +267,14 @@ function init (source, folder) {
 }
 
 async function update (folder) {
-    folder = folder || ".";
-    const {dbJSON, dest} = await doit(path.join(folder, "sources"), folder);
-    cleanUp(dbJSON, dest);
+    try {
+        folder = folder || ".";
+        const {dbJSON, dest} = await doit(path.join(folder, "sources"), folder);
+        cleanUp(dbJSON, dest);
+    }
+    catch (e) {
+        console.log(e);
+    }
 }
 
 function printHelp () {
