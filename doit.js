@@ -33,7 +33,7 @@ async function getSettings () {
     });
 }
 
-function genFile(source, dest) {
+function genFile(source, dest, resources) {
     execFile(pandoc, ["--self-contained", "-o", dest, source], function (err, stdout, stderr) {
         if (err) {
             console.log(err);
@@ -201,6 +201,7 @@ async function doit (source, destination) {
                 let sourceFile = path.join(folder, file.filename);
                 const descriptionFile = sourceFile + ".json";
 
+				let resources = ".";
                 if (file.isDirectory) {
                     const dfiles = await readdir(sourceFile);
                     const index = dfiles.filter(f => !f.isDirectory && f.filename.startsWith("index."));
@@ -209,6 +210,7 @@ async function doit (source, destination) {
                         throw "Can't find index on folder : " + sourceFile;
                     }
 
+					resources = sourceFile;
                     sourceFile = path.join(sourceFile, index[0].filename);
                 }
     
@@ -220,7 +222,7 @@ async function doit (source, destination) {
                     descriptionFile,
                     destinationFile
                 )) {
-                    genFile(sourceFile, destinationFile);
+                    genFile(sourceFile, destinationFile, resources);
                 }
 
                 // always generate db json file.
@@ -232,7 +234,7 @@ async function doit (source, destination) {
             }
         }
 
-        list.sort(({date: dateA}, {date: dateB}) => new Date(dateA).getTime() - new Date(dateB).getTime());
+        list.sort(({date: dateA}, {date: dateB}) => new Date(dateB).getTime() - new Date(dateA).getTime());
     }
 
     fs.writeFile(path.join(dest, "db.json"), JSON.stringify(dbJSON), err => console.log(err?err:"done!"));
