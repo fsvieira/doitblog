@@ -5,6 +5,9 @@ A simple static blog generator
 
 ### Instal doitblog
 
+To use doitblog you will need to install pandoc (https://pandoc.org/).
+
+
 ```
 npm install doitblog -g
 ```
