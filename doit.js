@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-const execFile = require("child_process").execFile;
-const pandoc = require("pandoc-bin").path;
+const {execFile} = require("child_process");
 const fs = require("fs");
 const path = require("path");
-const ncp = require('ncp').ncp;
+const {ncp} = require('ncp');
 
 const package = require("./package.json");
 
@@ -33,8 +32,10 @@ async function getSettings () {
     });
 }
 
-function genFile(source, dest, resources) {
-    execFile(pandoc, ["--self-contained", "-o", dest, source], function (err, stdout, stderr) {
+function genFile(source, dest, resources, cwd='.') {
+    execFile('pandoc', ["--self-contained", "-o", dest, source], {
+        cwd
+    }, function (err, stdout, stderr) {
         if (err) {
             console.log(err);
         }
@@ -222,14 +223,19 @@ async function doit (source, destination) {
                     descriptionFile,
                     destinationFile
                 )) {
-                    genFile(sourceFile, destinationFile, resources);
+                    genFile(
+                        path.relative(destination, sourceFile), 
+                        path.relative(destination, destinationFile), 
+                        path.relative(destination, resources), 
+                        destination
+                    );
                 }
 
                 // always generate db json file.
                 const description = await readDescription(descriptionFile, file.filename);
                 list.push({
                     ...description,
-                    url: destinationFile
+                    url: path.relative(destination, destinationFile)
                 });
             }
         }
